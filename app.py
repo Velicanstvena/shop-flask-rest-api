@@ -1,17 +1,17 @@
 import os
 import secrets
+import redis
+import models
 
 from flask import Flask, jsonify
 from flask_smorest import Api
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate, migrate
 from sqlalchemy import values
-
+from rq import Queue
 from dotenv import load_dotenv
-
 from db import db
 from blocklist import BLOCKLIST
-import models
 
 from resources.item import blp as ItemBlueprint
 from resources.store import blp as StoreBlueprint
@@ -21,6 +21,9 @@ from resources.user import blp as UserBlueprint
 def create_app(db_url=None):
     app = Flask(__name__)
     load_dotenv()
+
+    connection_redis = redis.from_url(os.getenv('REDIS_URL'))
+    app.queue = Queue("emails", connection=connection_redis)
 
     app.config["PROPAGATE_EXCEPTIONS"] = True
     app.config["API_TITLE"] = "Stores REST API"
@@ -43,7 +46,7 @@ def create_app(db_url=None):
     # it is used to verify that our app generated JWT
     # secrets.SystemRandom().getrandbits(128)
     # it should not be stored in code, but in env variable
-    app.config["JWT_SECRET_KEY"] = "79518441813193800973500915703908842848"
+    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
     jwt = JWTManager(app)
 
     @jwt.token_in_blocklist_loader
